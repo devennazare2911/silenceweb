@@ -2,74 +2,211 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Leaderboard Data</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hall of Silence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
+    :root {
+      --bg: #060606;
+      --card: #111;
+      --border: #1f1f1f;
+      --yellow: #f5c400;
+      --text: #eaeaea;
+      --muted: #777;
+      --dead: #8a1f1f;
     }
-    pre {
-      background: #f4f4f4;
-      padding: 15px;
-      border-radius: 6px;
-      overflow-x: auto;
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #120000, #000);
+      font-family: Inter, sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 24px 16px 80px;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--yellow);
+      letter-spacing: 3px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #0b0b0b;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 14px;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .tab.active {
+      background: var(--yellow);
+      color: #000;
+    }
+
+    .list {
+      display: none;
+    }
+
+    .list.active {
+      display: block;
+    }
+
+    .row {
+      background: linear-gradient(#141414, #0f0f0f);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+    }
+
+    .rank {
+      width: 40px;
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .user {
+      flex: 1;
+      font-size: 15px;
+    }
+
+    .meta {
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .status {
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .dead {
+      color: var(--dead);
+    }
+
+    .best {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .you {
+      border: 1px solid var(--yellow);
+      box-shadow: 0 0 14px rgba(245,196,0,0.2);
+    }
+
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: #555;
     }
   </style>
 </head>
+
 <body>
+  <div class="container">
+    <h1>HALL OF SILENCE</h1>
 
-  <h1>Leaderboard Data</h1>
-  <div id="status">Loading data...</div>
-  <pre id="output"></pre>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('alive')">ACTIVE</div>
+      <div class="tab" onclick="switchTab('dead')">LOSERS ☠️</div>
+    </div>
 
-  <!-- Firebase SDKs -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    <div id="alive" class="list active"></div>
+    <div id="dead" class="list"></div>
 
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDjbIKtcirLjt2kO1ipG0Z3ZHv6QYpft6I",
-      authDomain: "silence-d0e73.firebaseapp.com",
-      projectId: "silence-d0e73",
-      storageBucket: "silence-d0e73.firebasestorage.app",
-      messagingSenderId: "623022634370",
-      appId: "1:623022634370:web:2603f735c0ce0a43ab0b9b",
-      measurementId: "G-0F84QC94X7"
-    };
+    <div class="footer">
+      “The best players are the ones you never see.”
+    </div>
+  </div>
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    const outputEl = document.getElementById("output");
-    const statusEl = document.getElementById("status");
+const firebaseConfig = {
+  apiKey: "AIzaSyDjbIKtcirLjt2kO1ipG0Z3ZHv6QYpft6I",
+  authDomain: "silence-d0e73.firebaseapp.com",
+  projectId: "silence-d0e73",
+  appId: "1:623022634370:web:2603f735c0ce0a43ab0b9b"
+};
 
-    async function fetchLeaderboard() {
-      try {
-        const querySnapshot = await getDocs(collection(db, "leaderboard"));
-        const data = [];
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-        querySnapshot.forEach((doc) => {
-          data.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
+const aliveEl = document.getElementById("alive");
+const deadEl = document.getElementById("dead");
 
-        statusEl.innerText = `Loaded ${data.length} records`;
-        outputEl.innerText = JSON.stringify(data, null, 2);
+const now = Date.now();
+const YOU_ID = "1766947326"; // optional highlight
 
-      } catch (error) {
-        statusEl.innerText = "Error loading data";
-        outputEl.innerText = error.message;
-        console.error(error);
-      }
-    }
+function daysAway(ts) {
+  return Math.floor((now - ts) / 86400000);
+}
 
-    fetchLeaderboard();
-  </script>
+const snapshot = await getDocs(collection(db, "leaderboard"));
+const players = [];
 
+snapshot.forEach(d => players.push(d.data()));
+
+const alive = players.filter(p => !p.isDead)
+  .sort((a,b) => a.lastSeen - b.lastSeen);
+
+const dead = players.filter(p => p.isDead)
+  .sort((a,b) => b.lastSeen - a.lastSeen);
+
+function render(list, container, isDead=false) {
+  container.innerHTML = "";
+  list.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "row" + (p.username === YOU_ID ? " you" : "");
+
+    row.innerHTML = `
+      <div class="rank">#${i+1}</div>
+      <div class="user">${p.username}${p.username === YOU_ID ? " (You)" : ""}</div>
+      <div class="meta">
+        <div class="status ${isDead ? "dead" : ""}">
+          ${isDead ? "KILLED" : "ALIVE"}
+        </div>
+        <div class="best">BEST ${daysAway(p.lastSeen)}</div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+render(alive, aliveEl);
+render(dead, deadEl, true);
+
+window.switchTab = (id) => {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".list").forEach(l => l.classList.remove("active"));
+
+  document.querySelector(`.tab[onclick*="${id}"]`).classList.add("active");
+  document.getElementById(id).classList.add("active");
+};
+</script>
 </body>
 </html>
