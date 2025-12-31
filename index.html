@@ -1,6 +1,75 @@
-<html>
-    <body>
-        <h1>Welcome to My Website</h1>
-        <p>This is a simple HTML page.</p>
-    </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Leaderboard Data</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Leaderboard Data</h1>
+  <div id="status">Loading data...</div>
+  <pre id="output"></pre>
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDjbIKtcirLjt2kO1ipG0Z3ZHv6QYpft6I",
+      authDomain: "silence-d0e73.firebaseapp.com",
+      projectId: "silence-d0e73",
+      storageBucket: "silence-d0e73.firebasestorage.app",
+      messagingSenderId: "623022634370",
+      appId: "1:623022634370:web:2603f735c0ce0a43ab0b9b",
+      measurementId: "G-0F84QC94X7"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const outputEl = document.getElementById("output");
+    const statusEl = document.getElementById("status");
+
+    async function fetchLeaderboard() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "leaderboard"));
+        const data = [];
+
+        querySnapshot.forEach((doc) => {
+          data.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        statusEl.innerText = `Loaded ${data.length} records`;
+        outputEl.innerText = JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        statusEl.innerText = "Error loading data";
+        outputEl.innerText = error.message;
+        console.error(error);
+      }
+    }
+
+    fetchLeaderboard();
+  </script>
+
+</body>
 </html>
