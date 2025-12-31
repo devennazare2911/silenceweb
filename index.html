@@ -1,271 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Hall of Silence</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-
-  <style>
-    :root {
-      --bg: #060606;
-      --card: #111;
-      --border: #1f1f1f;
-      --yellow: #f5c400;
-      --text: #eaeaea;
-      --muted: #777;
-      --dead: #8a1f1f;
-    }
-
-    body {
-      margin: 0;
-      background: radial-gradient(circle at top, #120000, #000);
-      font-family: Inter, sans-serif;
-      color: var(--text);
-      display: flex;
-      justify-content: center;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 480px;
-      padding: 24px 16px 80px;
-    }
-
-    h1 {
-      text-align: center;
-      color: var(--yellow);
-      letter-spacing: 3px;
-      margin-bottom: 20px;
-    }
-
-    .tabs {
-      display: flex;
-      background: #0b0b0b;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    .tab {
-      flex: 1;
-      padding: 14px;
-      text-align: center;
-      cursor: pointer;
-      color: var(--muted);
-      font-weight: 500;
-    }
-
-    .tab.active {
-      background: var(--yellow);
-      color: #000;
-    }
-
-    .list { display: none; }
-    .list.active { display: block; }
-
-    .row {
-      background: linear-gradient(#141414, #0f0f0f);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-    }
-
-    .rank {
-      width: 44px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-right: 6px;
-    }
-
-    .badge {
-      width: 28px;
-      height: 28px;
-      opacity: 0.9;
-    }
-
-    .rank-text {
-      color: var(--yellow);
-      font-weight: 600;
-    }
-
-    .user-block {
-      flex: 1;
-    }
-
-    .username {
-      font-size: 15px;
-    }
-
-    .last-seen {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .meta {
-      text-align: right;
-      font-size: 13px;
-    }
-
-    .status {
-      font-weight: 600;
-      color: var(--yellow);
-    }
-
-    .dead {
-      color: var(--dead);
-    }
-
-    .best {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .you {
-      border: 1px solid var(--yellow);
-      box-shadow: 0 0 14px rgba(245,196,0,0.2);
-    }
-
-    .footer {
-      margin-top: 40px;
-      text-align: center;
-      font-size: 12px;
-      color: #555;
-    }
-  </style>
-</head>
-
-<body>
-<div class="container">
-  <h1>HALL OF SILENCE</h1>
-
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('alive')">ACTIVE</div>
-    <div class="tab" onclick="switchTab('dead')">LOSERS ☠️</div>
-  </div>
-
-  <div id="alive" class="list active"></div>
-  <div id="dead" class="list"></div>
-
-  <div class="footer">
-    “The best players are the ones you never see.”
-  </div>
-</div>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SILENCE — Leaderboard</title>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDjbIKtcirLjt2kO1ipG0Z3ZHv6QYpft6I",
   authDomain: "silence-d0e73.firebaseapp.com",
   projectId: "silence-d0e73",
-  appId: "1:623022634370:web:2603f735c0ce0a43ab0b9b"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const YOU_ID = "1766947326"; // optional highlight
-const now = Date.now();
+const aliveList = document.getElementById("alive-list");
+const deadList = document.getElementById("dead-list");
 
-function daysAway(ts) {
-  return Math.floor((now - ts) / 86400000);
+let aliveLoaded = false;
+let deadLoaded = false;
+
+function relativeTime(lastSeen) {
+  const diff = Date.now() - lastSeen;
+  const min = Math.floor(diff / 60000);
+  const hr = Math.floor(min / 60);
+  const day = Math.floor(hr / 24);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} minutes ago`;
+  if (hr < 24) return `${hr} hours ago`;
+  if (day >= 30) return "30+ days ago";
+  return `${day} days ago`;
 }
 
-function timeAgo(ts) {
-  const seconds = Math.floor((Date.now() - ts) / 1000);
-
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds} seconds ago`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-
-  const days = Math.floor(hours / 24);
-  return `${days} day${days > 1 ? "s" : ""} ago`;
+function decayClass(days) {
+  if (days <= 1) return "decay-low";
+  if (days <= 6) return "decay-mid";
+  if (days <= 14) return "decay-high";
+  return "decay-legend";
 }
 
-const aliveEl = document.getElementById("alive");
-const deadEl = document.getElementById("dead");
+function createRow(user, rank, isDead) {
+  const row = document.createElement("div");
+  row.className = `row ${isDead ? "dead" : "alive"} ${decayClass(user.daysAway)}`;
+  if (!isDead && rank <= 3) row.classList.add(`top-${rank}`);
 
-const snapshot = await getDocs(collection(db, "leaderboard"));
-const players = [];
-snapshot.forEach(d => players.push(d.data()));
-
-const alive = players
-  .filter(p => !p.isDead)
-  .sort((a,b) => a.lastSeen - b.lastSeen);
-
-const dead = players
-  .filter(p => p.isDead)
-  .sort((a,b) => b.lastSeen - a.lastSeen);
-
-function badgeForRank(rank) {
-  if (rank === 1) return "gold.png";
-  if (rank === 2) return "silver.png";
-  if (rank === 3) return "bronze.png";
-  return null;
+  row.innerHTML = `
+    <div class="rank">#${rank}</div>
+    <div class="name">
+      ${user.username}
+      <div class="sub">Last seen ${relativeTime(user.lastSeen)}</div>
+    </div>
+    ${isDead ? `<div class="crack"></div>` : `<div class="pulse"></div>`}
+  `;
+  return row;
 }
 
-function render(list, el, isDead=false) {
-  el.innerHTML = "";
+async function loadData() {
+  const snap = await getDocs(collection(db, "leaderboard"));
+  let alive = [], dead = [];
 
-  list.forEach((p, i) => {
-    const rank = i + 1;
-    const badge = !isDead ? badgeForRank(rank) : null;
-
-    const row = document.createElement("div");
-    row.className = "row" + (p.username === YOU_ID ? " you" : "");
-
-    row.innerHTML = `
-      <div class="rank">
-        ${badge 
-          ? `<img src="${badge}" class="badge" />`
-          : `<div class="rank-text">#${rank}</div>`}
-      </div>
-
-      <div class="user-block">
-        <div class="username">
-          ${p.username}${p.username === YOU_ID ? " (You)" : ""}
-        </div>
-        <div class="last-seen">
-          Last seen ${timeAgo(p.lastSeen)}
-        </div>
-      </div>
-
-      <div class="meta">
-        <div class="status ${isDead ? "dead" : ""}">
-          ${isDead ? "KILLED" : "ALIVE"}
-        </div>
-        <div class="best">
-          BEST ${daysAway(p.lastSeen)}
-        </div>
-      </div>
-    `;
-
-    el.appendChild(row);
+  snap.forEach(doc => {
+    const d = doc.data();
+    d.daysAway = Math.floor((Date.now() - d.lastSeen) / 86400000);
+    d.isDead ? dead.push(d) : alive.push(d);
   });
+
+  alive.sort((a,b) => b.daysAway - a.daysAway);
+  dead.sort((a,b) => b.lastSeen - a.lastSeen);
+
+  if (!alive.length) aliveList.innerHTML = `<div class="empty">Silence has claimed everyone.</div>`;
+  alive.forEach((u,i) =>
+    setTimeout(() => aliveList.appendChild(createRow(u, i+1, false)), i * 120)
+  );
+  aliveLoaded = true;
+
+  window._deadCache = dead;
 }
 
-render(alive, aliveEl);
-render(dead, deadEl, true);
+function loadDead() {
+  if (deadLoaded) return;
+  const dead = window._deadCache || [];
 
-window.switchTab = (id) => {
+  if (!dead.length) deadList.innerHTML = `<div class="empty">Someone will resist first.</div>`;
+  dead.forEach((u,i) =>
+    setTimeout(() => deadList.appendChild(createRow(u, i+1, true)), i * 100)
+  );
+  deadLoaded = true;
+}
+
+window.switchTab = (tab) => {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".list").forEach(l => l.classList.remove("active"));
-  document.querySelector(`.tab[onclick*="${id}"]`).classList.add("active");
-  document.getElementById(id).classList.add("active");
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+
+  document.getElementById(tab).classList.add("active");
+  document.getElementById(tab + "-panel").classList.add("active");
+
+  if (tab === "killed") loadDead();
 };
+
+loadData();
+</script>
+
+<style>
+    .logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.logo img {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  
+}
+.logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #0b0b0b, #000);
+  font-family: Inter, system-ui;
+  color: #e5e5e5;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.container {
+  max-width: 520px;
+  margin: auto;
+  padding: 30px 18px;
+}
+
+h1 {
+  text-align: center;
+  letter-spacing: 6px;
+  margin-bottom: 20px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  font-size: 12px;
+  letter-spacing: 3px;
+  opacity: 0.4;
+  cursor: pointer;
+  padding-bottom: 6px;
+}
+
+.tab.active {
+  opacity: 1;
+  border-bottom: 1px solid #777;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.panel {
+  display: none;
+}
+
+.panel.active {
+  display: block;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  animation: fadeIn 0.6s forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+.rank {
+  width: 38px;
+  text-align: center;
+  opacity: 0.4;
+}
+
+.sub {
+  font-size: 11px;
+  color: #666;
+}
+
+.top-1 { border-left: 3px solid #b08d57; box-shadow: 0 0 18px rgba(176,141,87,0.3); }
+.top-2 { border-left: 3px solid #aaa; }
+.top-3 { border-left: 3px solid #7c4a2d; }
+
+.decay-low { color: #555; }
+.decay-mid { color: #ccc; }
+.decay-high { text-shadow: 0 0 6px rgba(255,255,255,0.2); }
+.decay-legend { text-shadow: 0 0 12px rgba(255,255,255,0.4); }
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #999;
+  animation: pulse 14s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 0.2; }
+  50% { opacity: 0.8; }
+}
+
+.dead {
+  filter: grayscale(80%);
+  opacity: 0.65;
+}
+
+.crack {
+  width: 22px;
+  height: 1px;
+  background: #333;
+  transform: rotate(-20deg);
+}
+
+.empty {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.5;
+  margin-top: 20px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <div class="logo">
+        <img
+          src="https://i.ibb.co/9k16Qjx0/appstore.png"
+          alt="Silence Game Logo"
+        />
+      </div>
+      
+  <h1>SILENCE</h1>
+
+  <div class="tabs">
+    <div class="tab active" id="alive" onclick="switchTab('alive')">ALIVE</div>
+    <div class="tab" id="killed" onclick="switchTab('killed')">KILLED</div>
+  </div>
+
+  <div class="subtitle" id="alive-sub">They have not returned.</div>
+  <div class="subtitle" id="killed-sub" style="display:none;">Silence was broken.</div>
+
+  <div id="alive-panel" class="panel active">
+    <div id="alive-list"></div>
+  </div>
+
+  <div id="killed-panel" class="panel">
+    <div id="dead-list"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.getElementById("alive-sub").style.display = tab === "alive" ? "block" : "none";
+  document.getElementById("killed-sub").style.display = tab === "killed" ? "block" : "none";
+}
 </script>
 </body>
 </html>
