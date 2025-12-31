@@ -54,6 +54,7 @@
       text-align: center;
       cursor: pointer;
       color: var(--muted);
+      font-weight: 500;
     }
 
     .tab.active {
@@ -72,7 +73,6 @@
       margin-bottom: 12px;
       display: flex;
       align-items: center;
-      position: relative;
     }
 
     .rank {
@@ -80,11 +80,13 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      margin-right: 6px;
     }
 
     .badge {
       width: 28px;
       height: 28px;
+      opacity: 0.9;
     }
 
     .rank-text {
@@ -92,9 +94,18 @@
       font-weight: 600;
     }
 
-    .user {
+    .user-block {
       flex: 1;
+    }
+
+    .username {
       font-size: 15px;
+    }
+
+    .last-seen {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
     }
 
     .meta {
@@ -119,28 +130,6 @@
     .you {
       border: 1px solid var(--yellow);
       box-shadow: 0 0 14px rgba(245,196,0,0.2);
-    }
-
-    /* Tooltip */
-    .tooltip {
-      position: absolute;
-      bottom: 110%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #000;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      color: #ccc;
-      border: 1px solid #222;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
-      white-space: nowrap;
-    }
-
-    .row:hover .tooltip {
-      opacity: 1;
     }
 
     .footer {
@@ -183,11 +172,27 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const YOU_ID = "1766947326"; // optional highlight
 const now = Date.now();
-const YOU_ID = "1766947326";
 
 function daysAway(ts) {
   return Math.floor((now - ts) / 86400000);
+}
+
+function timeAgo(ts) {
+  const seconds = Math.floor((Date.now() - ts) / 1000);
+
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds} seconds ago`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
 }
 
 const aliveEl = document.getElementById("alive");
@@ -197,10 +202,12 @@ const snapshot = await getDocs(collection(db, "leaderboard"));
 const players = [];
 snapshot.forEach(d => players.push(d.data()));
 
-const alive = players.filter(p => !p.isDead)
+const alive = players
+  .filter(p => !p.isDead)
   .sort((a,b) => a.lastSeen - b.lastSeen);
 
-const dead = players.filter(p => p.isDead)
+const dead = players
+  .filter(p => p.isDead)
   .sort((a,b) => b.lastSeen - a.lastSeen);
 
 function badgeForRank(rank) {
@@ -212,6 +219,7 @@ function badgeForRank(rank) {
 
 function render(list, el, isDead=false) {
   el.innerHTML = "";
+
   list.forEach((p, i) => {
     const rank = i + 1;
     const badge = !isDead ? badgeForRank(rank) : null;
@@ -220,23 +228,31 @@ function render(list, el, isDead=false) {
     row.className = "row" + (p.username === YOU_ID ? " you" : "");
 
     row.innerHTML = `
-      <div class="tooltip">Last seen ${daysAway(p.lastSeen)} days ago</div>
-
       <div class="rank">
         ${badge 
           ? `<img src="${badge}" class="badge" />`
           : `<div class="rank-text">#${rank}</div>`}
       </div>
 
-      <div class="user">${p.username}${p.username === YOU_ID ? " (You)" : ""}</div>
+      <div class="user-block">
+        <div class="username">
+          ${p.username}${p.username === YOU_ID ? " (You)" : ""}
+        </div>
+        <div class="last-seen">
+          Last seen ${timeAgo(p.lastSeen)}
+        </div>
+      </div>
 
       <div class="meta">
         <div class="status ${isDead ? "dead" : ""}">
           ${isDead ? "KILLED" : "ALIVE"}
         </div>
-        <div class="best">BEST ${daysAway(p.lastSeen)}</div>
+        <div class="best">
+          BEST ${daysAway(p.lastSeen)}
+        </div>
       </div>
     `;
+
     el.appendChild(row);
   });
 }
