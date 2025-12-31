@@ -37,7 +37,6 @@
       text-align: center;
       color: var(--yellow);
       letter-spacing: 3px;
-      font-weight: 600;
       margin-bottom: 20px;
     }
 
@@ -51,10 +50,9 @@
 
     .tab {
       flex: 1;
-      text-align: center;
       padding: 14px;
+      text-align: center;
       cursor: pointer;
-      font-weight: 500;
       color: var(--muted);
     }
 
@@ -63,13 +61,8 @@
       color: #000;
     }
 
-    .list {
-      display: none;
-    }
-
-    .list.active {
-      display: block;
-    }
+    .list { display: none; }
+    .list.active { display: block; }
 
     .row {
       background: linear-gradient(#141414, #0f0f0f);
@@ -79,10 +72,22 @@
       margin-bottom: 12px;
       display: flex;
       align-items: center;
+      position: relative;
     }
 
     .rank {
-      width: 40px;
+      width: 44px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .badge {
+      width: 28px;
+      height: 28px;
+    }
+
+    .rank-text {
       color: var(--yellow);
       font-weight: 600;
     }
@@ -98,8 +103,8 @@
     }
 
     .status {
-      color: var(--yellow);
       font-weight: 600;
+      color: var(--yellow);
     }
 
     .dead {
@@ -107,13 +112,35 @@
     }
 
     .best {
-      color: var(--muted);
       font-size: 12px;
+      color: var(--muted);
     }
 
     .you {
       border: 1px solid var(--yellow);
       box-shadow: 0 0 14px rgba(245,196,0,0.2);
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #ccc;
+      border: 1px solid #222;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .row:hover .tooltip {
+      opacity: 1;
     }
 
     .footer {
@@ -126,21 +153,21 @@
 </head>
 
 <body>
-  <div class="container">
-    <h1>HALL OF SILENCE</h1>
+<div class="container">
+  <h1>HALL OF SILENCE</h1>
 
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('alive')">ACTIVE</div>
-      <div class="tab" onclick="switchTab('dead')">LOSERS ☠️</div>
-    </div>
-
-    <div id="alive" class="list active"></div>
-    <div id="dead" class="list"></div>
-
-    <div class="footer">
-      “The best players are the ones you never see.”
-    </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('alive')">ACTIVE</div>
+    <div class="tab" onclick="switchTab('dead')">LOSERS ☠️</div>
   </div>
+
+  <div id="alive" class="list active"></div>
+  <div id="dead" class="list"></div>
+
+  <div class="footer">
+    “The best players are the ones you never see.”
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -156,19 +183,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const aliveEl = document.getElementById("alive");
-const deadEl = document.getElementById("dead");
-
 const now = Date.now();
-const YOU_ID = "1766947326"; // optional highlight
+const YOU_ID = "1766947326";
 
 function daysAway(ts) {
   return Math.floor((now - ts) / 86400000);
 }
 
+const aliveEl = document.getElementById("alive");
+const deadEl = document.getElementById("dead");
+
 const snapshot = await getDocs(collection(db, "leaderboard"));
 const players = [];
-
 snapshot.forEach(d => players.push(d.data()));
 
 const alive = players.filter(p => !p.isDead)
@@ -177,15 +203,33 @@ const alive = players.filter(p => !p.isDead)
 const dead = players.filter(p => p.isDead)
   .sort((a,b) => b.lastSeen - a.lastSeen);
 
-function render(list, container, isDead=false) {
-  container.innerHTML = "";
+function badgeForRank(rank) {
+  if (rank === 1) return "gold.png";
+  if (rank === 2) return "silver.png";
+  if (rank === 3) return "bronze.png";
+  return null;
+}
+
+function render(list, el, isDead=false) {
+  el.innerHTML = "";
   list.forEach((p, i) => {
+    const rank = i + 1;
+    const badge = !isDead ? badgeForRank(rank) : null;
+
     const row = document.createElement("div");
     row.className = "row" + (p.username === YOU_ID ? " you" : "");
 
     row.innerHTML = `
-      <div class="rank">#${i+1}</div>
+      <div class="tooltip">Last seen ${daysAway(p.lastSeen)} days ago</div>
+
+      <div class="rank">
+        ${badge 
+          ? `<img src="${badge}" class="badge" />`
+          : `<div class="rank-text">#${rank}</div>`}
+      </div>
+
       <div class="user">${p.username}${p.username === YOU_ID ? " (You)" : ""}</div>
+
       <div class="meta">
         <div class="status ${isDead ? "dead" : ""}">
           ${isDead ? "KILLED" : "ALIVE"}
@@ -193,7 +237,7 @@ function render(list, container, isDead=false) {
         <div class="best">BEST ${daysAway(p.lastSeen)}</div>
       </div>
     `;
-    container.appendChild(row);
+    el.appendChild(row);
   });
 }
 
@@ -203,7 +247,6 @@ render(dead, deadEl, true);
 window.switchTab = (id) => {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".list").forEach(l => l.classList.remove("active"));
-
   document.querySelector(`.tab[onclick*="${id}"]`).classList.add("active");
   document.getElementById(id).classList.add("active");
 };
